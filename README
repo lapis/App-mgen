@@ -1,11 +1,11 @@
-This is Perl module App::mgen.
+This is Perl module App::pstart.
 
 INSTALLATION
 
-App::mgen installation is straightforward. If your CPAN shell is set up,
+App::pstart installation is straightforward. If your CPAN shell is set up,
 you should just be able to do
 
-    % cpan App::mgen
+    % cpan App::pstart
 
 Download it, unpack it, then build it as per the usual:
 
@@ -18,9 +18,9 @@ Then install it:
 
 DOCUMENTATION
 
-App::mgen documentation is available as in POD. So you can do:
+App::pstart documentation is available as in POD. So you can do:
 
-    % perldoc App::mgen
+    % perldoc App::pstart
 
 to read the documentation online with your favorite pager.
 

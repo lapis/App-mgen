@@ -1,28 +1,376 @@
 package App::mgen;
+
+use 5.008;
+use utf8;
 use strict;
 use warnings;
-our $VERSION = '0.01';
+our $VERSION = '0.12';
+
+use Cwd;
+use IO::File;
+use Pod::Usage;
+use Time::Piece;
+use Getopt::Long;
+
+sub new {
+    my $class = shift;
+
+    my $self = bless {
+        options => {
+
+            # option list
+            moose       => undef,
+            immutable   => undef,
+            autoclearn  => undef,
+            signature   => undef,
+            silent      => undef,
+            dryrun      => undef,
+            description => undef,
+            author      => undef,
+            email       => undef,
+            path        => undef,
+        },
+        description => "",
+        module_name => "",
+        module_path => "",
+        author      => "",
+        email       => "",
+    }, $class;
+
+    return $self->_set_env->_set_options;
+}
+
+sub generate {
+    my $self = shift;
+
+    ## code generate
+    my $gen = $self->_gen_default;
+
+    for my $attribute (qw/signature moose autoclearn immutable/) {
+        my $call = "_gen_$attribute";
+        $gen .= $self->$call if $self->{options}->{$attribute};
+    }
+
+    $gen .= $self->_gen_packend . $self->_gen_pod;
+
+    ## file output
+    my $path;
+    if ( !$self->{options}->{dryrun} ) {
+        $path = $self->_create_dir;
+        my $io = IO::File->new( $path, "w" ) || die $!;
+
+        $io->print($gen);
+        $io->close;
+    }
+
+    ## std output
+    if ( !$self->{options}->{silent} ) {
+        print "$gen\n";
+        print "OUTPUT >> $path\n" if $path;
+    }
+
+    return $gen;
+}
+
+sub _set_env {
+    my $self = shift;
+
+    $self->{module_path} = $ENV{PSTART_ROOT}   ? $ENV{PSTART_ROOT}   : "";
+    $self->{author}      = $ENV{PSTART_AUTHOR} ? $ENV{PSTART_AUTHOR} : "";
+    $self->{email}       = $ENV{PSTART_EMAIL}  ? $ENV{PSTART_EMAIL}  : "";
+
+    return $self;
+}
+
+sub _set_options {
+    my $self = shift;
+
+    # Set options
+    my $options = {};
+    my $ret     = GetOptions(
+        'moose'         => \( $options->{moose} ),
+        'immutable'     => \( $options->{immutable} ),
+        'autoclearn'    => \( $options->{autoclearn} ),
+        'signature'     => \( $options->{signature} ),
+        'silent'        => \( $options->{silent} ),
+        'dry-run'       => \( $options->{dryrun} ),
+        'description=s' => \( $options->{description} ),
+        'author=s'      => \( $options->{author} ),
+        'email=s'       => \( $options->{email} ),
+        'path=s'        => \( $options->{path} ),
+        help            => \&__pod2usage,
+        version         => \&__version
+    );
+
+    # Set members
+    $self->{options} = $options;
+
+    # Set module name
+    &__pod2usage unless @ARGV;
+    $self->{module_name} = pop @ARGV;
+    $self->{module_name} =~ s/\.pm$//g;
+
+    # Set description
+    $self->{description} = $self->{options}->{description}
+      if $self->{options}->{description};
+
+    # Set user status
+    $self->{author} =
+        $self->{options}->{author} ? $self->{options}->{author}
+      : $self->{author}            ? $self->{author}
+      :                              undef;
+    $self->{email} =
+        $self->{options}->{email} ? $self->{options}->{email}
+      : $self->{email}            ? $self->{email}
+      :                             undef;
+
+    # If not exist path, set current directory. It is deprecated.
+    $self->{module_path} = getcwd if !$self->{module_path};
+    $self->{module_path} = $self->{options}->{path} if $self->{options}->{path};
+
+    return $self;
+}
+
+sub _create_dir {
+    my $self = shift;
+
+    return if !$self->{module_path};
+
+    my $module_name = $self->{module_name};
+    $module_name =~ s/::/\//g;
+
+    my ( $path, $file_path );
+    $path = $file_path = sprintf "%s/%s", $self->{module_path}, $module_name;
+
+    $path =~ s/\/\///g;                               # remove duplicated
+    $path =~ s/^\///g;                                # remove front slash
+    $path =~ s/\/\w+$//g;                             # remove module name
+    $_    =~ s/[\r\n]//g for ( $path, $file_path );
+
+    my @path_list = split "/", $path;
+
+    $self->_recursive_create_dir(@path_list);
+
+    return "$file_path.pm";
+}
+
+sub _recursive_create_dir {
+    my $self      = shift;
+    my @path_list = @_;
+
+    my $path = "/" . ( pop @path_list );
+
+    my $res = $self->_recursive_create_dir(@path_list) if @path_list;
+
+    $path = "$res$path" if $res;
+
+    unless ( !$path && -d $path ) {
+        mkdir $path;
+    }
+
+    return $path;
+}
+
+sub _gen_pod {
+    my $self = shift;
+
+    my $name        = $self->_gen_name;
+    my $author      = $self->_gen_author;
+    my $description = $self->_gen_description;
+
+    my $pod = <<"GEN_POD";
+__END__
+
+head1 NAME
+$name
+head1 DESCRIPTION
+$description
+head1 AUTHOR
+$author
+head1 SEE ALSO
+
+head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+=cut
+GEN_POD
+
+    $pod =~ s/head1/=head1/g;
+    return $pod;
+}
+
+sub _gen_name {
+    my $self = shift;
+
+    my $namespace   = $self->{module_name};
+    my $description = $self->{description};
+
+    <<"GEN_NAME";
+
+$namespace - $description
+GEN_NAME
+}
+
+sub _gen_description {
+    my $self = shift;
+
+    my $description = $self->{description} || return "";
+
+    <<"GEN_DESCRIPTION";
+
+$description
+GEN_DESCRIPTION
+}
+
+sub _gen_default {
+    my $self = shift;
+
+    my $namespace = $self->{module_name};
+
+    <<"GEN_DEFAULT";
+package $namespace;
+
+use strict;
+use warnings;
+
+GEN_DEFAULT
+}
+
+sub _gen_signature {
+    my $self = shift;
+
+    my $author =
+        $self->{options}->{author} ? $self->{options}->{author}
+      : $self->{author}            ? $self->{author}
+      :                              undef;
+
+    if ( !$author ) {
+        return "";
+    }
+
+    my $time = localtime;
+    my $ymd  = $time->ymd;
+
+    <<"GEN_SIGNATURE";
+# $ymd $author
+
+GEN_SIGNATURE
+}
+
+sub _gen_author {
+    my $self = shift;
+
+    my $author = $self->{author} || "";
+    my $email  = $self->{email}  || "";
+
+    $email =~ s/(?:^((\w|\W)+))/E<lt>$1E<gt>/ if $email;
+
+    <<"GEN_AUTHER";
+
+$author $email
+GEN_AUTHER
+}
+
+sub _gen_moose {
+    my $self = shift;
+
+    <<'GEN_MOOSE';
+use Moose;
+GEN_MOOSE
+}
+
+sub _gen_autoclearn {
+    my $self = shift;
+
+    <<'GEN_AUTOCLEARN';
+use namespace::autoclearn;
+GEN_AUTOCLEARN
+}
+
+sub _gen_immutable {
+    my $self = shift;
+
+    <<'GEN_IMMUTABLE';
+
+__PACKAGE__->meta->make_immutable;
+GEN_IMMUTABLE
+}
+
+sub _gen_packend {
+    my $self = shift;
+
+    <<'GEN_PACKEND';
 
 1;
+GEN_PACKEND
+}
+
+sub __pod2usage {
+    pod2usage(2);
+}
+
+sub __version {
+    print "mgen ver $VERSION\n";
+    exit;
+}
+
+1;
+
 __END__
 
 =head1 NAME
 
-App::mgen -
+App::mgen - Generate the single module file
 
 =head1 SYNOPSIS
 
-  use App::mgen;
+mgen [options] [module_name]
+
+    Options :
+        --description=s Set description
+        --author=s      Set author name
+        --email=s       Set email
+        --path=s        Set module root path
+        --signature     Set signature. necessary set author and email.
+        --moose         Use Moose
+        --immutable     Use __PACKAGE__->meta->make_immutable
+        --autoclearn    Use namespace::autoclearn
+        --help          Output help
+        --version       Output version
+    
+    ENVs (recommendation!):
+        PSTART_ROOT     Set default module root path
+        PSTART_AUTHOR   Set default author name
+        PSTART_EMAIL    Set default email
+
+    e.g. :
+        # Generate standerd module
+        mgen MyApp::Module
+
+        # Use Moose
+        mgen --moose MyApp::Module
+
+        # Set description
+        mgen --description="a module" MyApp::Module
+
+        # Set userdata (ENVs)
+        export PSTART_ROOT=`pwd`
+        export PSTART_AUTHOR="username"
+        export PSTART_EMAIL="example@example.com"
+        mgen MyApp::Module
+
+        # Set userdata (Options)
+        mgen --path=`pwd` --author="username" --email="example@example.com" MyApp::Module
 
 =head1 DESCRIPTION
 
-App::mgen is
+App::mgen is generate the single module file.
 
 =head1 AUTHOR
 
 lapis_tw E<lt>lapis0896@gmail.comE<gt>
-
-=head1 SEE ALSO
 
 =head1 LICENSE
 
