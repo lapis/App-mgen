@@ -1,5 +1,6 @@
 Revision history for Perl extension App::mgen
-
+0.13    2011-10-28
+        - implemented some options.
 0.12    2011-10-26
         - module rename
 0.11    2011-10-25 

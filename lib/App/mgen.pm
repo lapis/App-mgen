@@ -4,7 +4,7 @@ use 5.008;
 use utf8;
 use strict;
 use warnings;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 use Cwd;
 use Carp ();
