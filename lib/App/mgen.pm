@@ -7,7 +7,10 @@ use warnings;
 our $VERSION = '0.12';
 
 use Cwd;
+use Carp ();
 use IO::File;
+use List::Util;
+use File::Path;
 use Pod::Usage;
 use Time::Piece;
 use Getopt::Long;
@@ -20,6 +23,10 @@ sub new {
 
             # option list
             moose       => undef,
+            mouse       => undef,
+            moo         => undef,
+            mo          => undef,
+            m           => undef,
             immutable   => undef,
             autoclearn  => undef,
             signature   => undef,
@@ -29,6 +36,7 @@ sub new {
             author      => undef,
             email       => undef,
             path        => undef,
+            current     => undef,
         },
         description => "",
         module_name => "",
@@ -44,19 +52,29 @@ sub generate {
     my $self = shift;
 
     ## code generate
+
+    # set header
     my $gen = $self->_gen_default;
 
-    for my $attribute (qw/signature moose autoclearn immutable/) {
+    for my $attribute (qw/signature moose autoclearn immutable mouse moo mo m/) {
         my $call = "_gen_$attribute";
         $gen .= $self->$call if $self->{options}->{$attribute};
     }
 
+    # set footer
     $gen .= $self->_gen_packend . $self->_gen_pod;
 
     ## file output
     my $path;
     if ( !$self->{options}->{dryrun} ) {
-        $path = $self->_create_dir;
+        if ( !$self->{options}->{current} ) {
+            $path = $self->_create_dir if !$self->{options}->{current};
+        } else {
+            my @depth = split "::", $self->{module_name};
+            $path = pop @depth;
+            $path = sprintf "%s.pm", $path;
+        }
+
         my $io = IO::File->new( $path, "w" ) || die $!;
 
         $io->print($gen);
@@ -89,6 +107,10 @@ sub _set_options {
     my $options = {};
     my $ret     = GetOptions(
         'moose'         => \( $options->{moose} ),
+        'mouse'         => \( $options->{mouse} ),
+        'moo'           => \( $options->{moo} ),
+        'mo'            => \( $options->{mo} ),
+        'm'             => \( $options->{m} ),
         'immutable'     => \( $options->{immutable} ),
         'autoclearn'    => \( $options->{autoclearn} ),
         'signature'     => \( $options->{signature} ),
@@ -98,6 +120,7 @@ sub _set_options {
         'author=s'      => \( $options->{author} ),
         'email=s'       => \( $options->{email} ),
         'path=s'        => \( $options->{path} ),
+        'current'       => \( $options->{current} ),
         help            => \&__pod2usage,
         version         => \&__version
     );
@@ -142,33 +165,16 @@ sub _create_dir {
     my ( $path, $file_path );
     $path = $file_path = sprintf "%s/%s", $self->{module_path}, $module_name;
 
-    $path =~ s/\/\///g;                               # remove duplicated
-    $path =~ s/^\///g;                                # remove front slash
+    $path =~ s/\/\///g;                               # remove duplicates
     $path =~ s/\/\w+$//g;                             # remove module name
     $_    =~ s/[\r\n]//g for ( $path, $file_path );
 
-    my @path_list = split "/", $path;
-
-    $self->_recursive_create_dir(@path_list);
-
-    return "$file_path.pm";
-}
-
-sub _recursive_create_dir {
-    my $self      = shift;
-    my @path_list = @_;
-
-    my $path = "/" . ( pop @path_list );
-
-    my $res = $self->_recursive_create_dir(@path_list) if @path_list;
-
-    $path = "$res$path" if $res;
-
-    unless ( !$path && -d $path ) {
-        mkdir $path;
+    eval { mkpath($path); };
+    if ($@) {
+        Carp::croak "failed create directory : $@\n";
     }
 
-    return $path;
+    return "$file_path.pm";
 }
 
 sub _gen_pod {
@@ -281,6 +287,36 @@ use Moose;
 GEN_MOOSE
 }
 
+sub _gen_mouse {
+    my $self = shift;
+    <<'GEN_MOUSE';
+use Mouse;
+GEN_MOUSE
+}
+
+sub _gen_moo {
+    my $self = shift;
+    <<'GEN_MOO';
+use Moo;
+GEN_MOO
+}
+
+# TODO Not correctly implemented
+sub _gen_mo {
+    my $self = shift;
+    <<'GEN_MO';
+use Mo;
+GEN_MO
+}
+
+# Perfect!
+sub _gen_m {
+    my $self = shift;
+    <<'GEN_M';
+use M;
+GEN_M
+}
+
 sub _gen_autoclearn {
     my $self = shift;
 
@@ -333,36 +369,45 @@ mgen [options] [module_name]
         --author=s      Set author name
         --email=s       Set email
         --path=s        Set module root path
-        --signature     Set signature. necessary set author and email.
-        --moose         Use Moose
+        --signature     Set signature. necessary set author and email
         --immutable     Use __PACKAGE__->meta->make_immutable
         --autoclearn    Use namespace::autoclearn
         --help          Output help
         --version       Output version
+        --current       Create a module in current directory
+        --moose         Use Moose
+        --mouse         Use Mouse
+        --moo           Use Moo
+        --mo            Use Mo
+        --m             Use M
     
-    ENVs (recommendation!):
+    ENVs :
         PSTART_ROOT     Set default module root path
         PSTART_AUTHOR   Set default author name
         PSTART_EMAIL    Set default email
 
     e.g. :
-        # Generate standerd module
-        mgen MyApp::Module
+        Generate standerd module
+        $ mgen MyApp::Module
 
-        # Use Moose
-        mgen --moose MyApp::Module
+        Use Moose
+        $ mgen --moose MyApp::Module
 
-        # Set description
-        mgen --description="a module" MyApp::Module
+        Set description
+        $ mgen --description="a module" MyApp::Module
 
-        # Set userdata (ENVs)
-        export PSTART_ROOT=`pwd`
-        export PSTART_AUTHOR="username"
-        export PSTART_EMAIL="example@example.com"
-        mgen MyApp::Module
+        Set userdata (ENVs)
+        $ export PSTART_ROOT=`pwd`
+        $ export PSTART_AUTHOR="username"
+        $ export PSTART_EMAIL="example@example.com"
+        $ mgen MyApp::Module
 
-        # Set userdata (Options)
-        mgen --path=`pwd` --author="username" --email="example@example.com" MyApp::Module
+        Set userdata (Options)
+        $ mgen --path=`pwd` --author="username" --email="example@example.com" MyApp::Module
+    
+   mgen is supported various OO :
+        Moose, Mouse, Moo, Mo, M
+        Above all, I recommend M 
 
 =head1 DESCRIPTION
 
