@@ -92,9 +92,9 @@ sub generate {
 sub _set_env {
     my $self = shift;
 
-    $self->{module_path} = $ENV{PSTART_ROOT}   ? $ENV{PSTART_ROOT}   : "";
-    $self->{author}      = $ENV{PSTART_AUTHOR} ? $ENV{PSTART_AUTHOR} : "";
-    $self->{email}       = $ENV{PSTART_EMAIL}  ? $ENV{PSTART_EMAIL}  : "";
+    $self->{module_path} = $ENV{MGEN_ROOT}   ? $ENV{MGEN_ROOT}   : "";
+    $self->{author}      = $ENV{MGEN_AUTHOR} ? $ENV{MGEN_AUTHOR} : "";
+    $self->{email}       = $ENV{MGEN_EMAIL}  ? $ENV{MGEN_EMAIL}  : "";
 
     return $self;
 }
@@ -381,9 +381,9 @@ mgen [options] [module_name]
         --m             Use M
     
     ENVs :
-        PSTART_ROOT     Set default module root path
-        PSTART_AUTHOR   Set default author name
-        PSTART_EMAIL    Set default email
+        MGEN_ROOT     Set default module root path
+        MGEN_AUTHOR   Set default author name
+        MGEN_EMAIL    Set default email
 
     e.g. :
         Generate standerd module
@@ -396,9 +396,9 @@ mgen [options] [module_name]
         $ mgen --description="a module" MyApp::Module
 
         Set userdata (ENVs)
-        $ export PSTART_ROOT=`pwd`
-        $ export PSTART_AUTHOR="username"
-        $ export PSTART_EMAIL="example@example.com"
+        $ export MGEN_ROOT=`pwd`
+        $ export MGEN_AUTHOR="username"
+        $ export MGEN_EMAIL="example@example.com"
         $ mgen MyApp::Module
 
         Set userdata (Options)

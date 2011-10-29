@@ -37,9 +37,9 @@ mgen [options] [module_name]
         --m             Use M
     
     ENVs :
-        PSTART_ROOT     Set default module root path
-        PSTART_AUTHOR   Set default author name
-        PSTART_EMAIL    Set default email
+        MGEN_ROOT     Set default module root path
+        MGEN_AUTHOR   Set default author name
+        MGEN_EMAIL    Set default email
 
     e.g. :
         Generate standerd module
@@ -52,9 +52,9 @@ mgen [options] [module_name]
         $ mgen --description="a module" MyApp::Module
 
         Set userdata (ENVs)
-        $ export PSTART_ROOT=`pwd`
-        $ export PSTART_AUTHOR="username"
-        $ export PSTART_EMAIL="example@example.com"
+        $ export MGEN_ROOT=`pwd`
+        $ export MGEN_AUTHOR="username"
+        $ export MGEN_EMAIL="example@example.com"
         $ mgen MyApp::Module
 
         Set userdata (Options)
