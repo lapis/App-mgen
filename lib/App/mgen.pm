@@ -379,6 +379,9 @@ mgen [options] [module_name]
         --moo           Use Moo
         --mo            Use Mo
         --m             Use M
+
+        --dry-run
+        --silent
     
     ENVs :
         MGEN_ROOT     Set default module root path
