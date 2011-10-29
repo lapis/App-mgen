@@ -3,8 +3,7 @@ package App::mgen;
 use 5.008;
 use utf8;
 use strict;
-use warnings;
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 use Cwd;
 use Carp ();
@@ -58,7 +57,7 @@ sub generate {
 
     for my $attribute (qw/signature moose autoclearn immutable mouse moo mo m/) {
         my $call = "_gen_$attribute";
-        $gen .= $self->$call if $self->{options}->{$attribute};
+        $gen .= $self->$call if defined($self->{options}->{$attribute});
     }
 
     # set footer
@@ -252,9 +251,7 @@ sub _gen_signature {
       : $self->{author}            ? $self->{author}
       :                              undef;
 
-    if ( !$author ) {
-        return "";
-    }
+    return unless defined($author);
 
     my $time = localtime;
     my $ymd  = $time->ymd;
@@ -267,6 +264,8 @@ GEN_SIGNATURE
 
 sub _gen_author {
     my $self = shift;
+
+    return unless $self->{author};
 
     my $author = $self->{author} || "";
     my $email  = $self->{email}  || "";
