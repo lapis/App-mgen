@@ -1,5 +1,9 @@
 Revision history for Perl extension App::mgen
 
+0.15    2011-10-30
+        - fixed pod
+        - fixed ENVs name
+
 0.14    2011-10-30
         - fixed tests.
         - fixed pod generate.
