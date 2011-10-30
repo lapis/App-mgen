@@ -11,6 +11,6 @@ test_requires 'Test::More';
 
 auto_set_repository;
 auto_include;
-install_script('script/mgen');
+install_script('bin/mgen');
 
 WriteAll;
