@@ -1,4 +1,5 @@
 use inc::Module::Install;
+
 name 'App-mgen';
 all_from 'lib/App/mgen.pm';
 
@@ -10,7 +11,6 @@ test_requires 'Test::More';
 
 auto_set_repository;
 auto_include;
-
-install_script('bin/mgen');
+install_script('mgen');
 
 WriteAll;
