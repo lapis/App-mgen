@@ -3,7 +3,7 @@ package App::mgen;
 use 5.008;
 use utf8;
 use strict;
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 use Cwd;
 use Carp ();
